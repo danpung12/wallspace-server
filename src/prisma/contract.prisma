@@ -1,0 +1,1100 @@
+// use prisma-8
+// Contract inferred from the live database schema. Edit as needed, then run `prisma contract emit`.
+
+namespace public {
+  // WARNING: Foreign key "id" -> "auth.users" exists in the database, but its target schema is outside the introspected scope, so no relation field was generated. If the target schema is described by an extension pack, add it to extensions and re-run infer.
+  model Profiles {
+    id                         Uuid                  @id(map: "profiles_pkey")
+    email                      String                @unique(map: "profiles_email_key")
+    fullName                   String?               @map("full_name")
+    avatarUrl                  String?               @map("avatar_url")
+    userType                   String?               @default("guest") @map("user_type")
+    bio                        String?
+    website                    String?
+    phone                      String?
+    address                    String?
+    createdAt                  TimestamptzString?    @default(now()) @map("created_at")
+    updatedAt                  TimestamptzString?    @default(now()) @map("updated_at")
+    nickname                   String?               @unique(map: "profiles_nickname_key")
+    name                       String?
+    gender                     String?
+    ageRange                   String?               @map("age_range")
+    snsLinks                   Jsonb                 @default(json`[]`) @map("sns_links")
+    canCreateStore             Boolean               @default(false) @map("can_create_store")
+    artworks                   Artworks[]
+    bookings                   Bookings[]
+    favorites                  Favorites[]
+    locationReviews            LocationReviews[]
+    locations                  Locations[]
+    messages                   Messages[]
+    notificationSettings       NotificationSettings?
+    notifications              Notifications[]
+    reservations               Reservations[]
+    reviews                    Reviews[]
+    userOnlineStatus           UserOnlineStatus?
+    userSettings               UserSettings?
+    conversations              Conversations[]       @relation(name: "conversations_manager_id_fkey")
+    conversationsConversations Conversations[]       @relation(name: "conversations_user_id_fkey")
+
+    @@index([ageRange], map: "idx_profiles_age_range")
+    @@index([canCreateStore], map: "idx_profiles_can_create_store", where: sql`(can_create_store = true)`)
+    @@index([gender], map: "idx_profiles_gender")
+    @@index([userType], map: "idx_profiles_user_type")
+    @@check(expression: sql`(age_range = ANY (ARRAY['10s'::text, '20s'::text, '30s'::text, '40s'::text, '50s'::text, '60s+'::text]))`, map: "profiles_age_range_check")
+    @@check(expression: sql`(gender = ANY (ARRAY['male'::text, 'female'::text, 'other'::text]))`, map: "profiles_gender_check")
+    @@check(expression: sql`((user_type = ANY (ARRAY['artist'::text, 'manager'::text, 'guest'::text, 'admin'::text])) OR (user_type IS NULL))`, map: "profiles_user_type_check")
+    @@rls
+    @@map("profiles")
+  }
+
+  model Artworks {
+    id                Uuid                @id(map: "artworks_pkey") @default(sql`gen_random_uuid()`)
+    artistId          Uuid?               @map("artist_id")
+    title             String
+    description       String?
+    dimensions        String?
+    price             Numeric(10, 2)?
+    imageUrl          String?             @map("image_url")
+    altText           String?             @map("alt_text")
+    category          String?
+    createdAt         TimestamptzString?  @default(now()) @map("created_at")
+    updatedAt         TimestamptzString?  @default(now()) @map("updated_at")
+    artworkReviews    ArtworkReviews[]
+    artworkViewEvents ArtworkViewEvents[]
+    bookings          Bookings[]
+    reservations      Reservations[]
+    artist            Profiles?           @relation(fields: [artistId], references: [id], onDelete: Cascade, map: "artworks_artist_id_fkey")
+
+    @@index([artistId], map: "idx_artworks_artist")
+    @@rls
+    @@map("artworks")
+  }
+
+  model ArtworkReviews {
+    id        Uuid              @id(map: "artwork_reviews_pkey") @default(sql`gen_random_uuid()`)
+    artworkId Uuid              @map("artwork_id")
+    nickname  String            @default("익명 관람객")
+    comment   String
+    createdAt TimestamptzString @default(now()) @map("created_at")
+    artwork   Artworks          @relation(fields: [artworkId], references: [id], onDelete: Cascade, map: "artwork_reviews_artwork_id_fkey", index: "idx_artwork_reviews_artwork_created")
+
+    @@index([artworkId, createdAt], map: "idx_artwork_reviews_artwork_created")
+    @@rls
+    @@map("artwork_reviews")
+  }
+
+  model Categories {
+    id          Uuid               @id(map: "categories_pkey") @default(sql`gen_random_uuid()`)
+    name        String             @unique(map: "categories_name_key")
+    description String?
+    createdAt   TimestamptzString? @default(now()) @map("created_at")
+    locations   Locations[]
+
+    @@rls
+    @@map("categories")
+  }
+
+  model Locations {
+    id                      Uuid               @id(map: "locations_pkey") @default(sql`gen_random_uuid()`)
+    name                    String
+    address                 String?
+    lat                     Numeric(10, 8)
+    lng                     Numeric(11, 8)
+    description             String?
+    images                  String[]?          @noCheck(elementNotNull)
+    totalSlots              Int?               @default(1) @map("total_slots")
+    reservedSlots           Int?               @default(0) @map("reserved_slots")
+    status                  String?            @default("available")
+    _type                   String?            @default("gallery") @map("type")
+    createdAt               TimestamptzString? @default(now()) @map("created_at")
+    updatedAt               TimestamptzString? @default(now()) @map("updated_at")
+    categoryId              Uuid?              @map("category_id")
+    phone                   String?
+    statusText              String?            @default("예약 가능") @map("status_text")
+    statusColor             String?            @default("#3B82F6") @map("status_color")
+    managerId               Uuid?              @map("manager_id")
+    addressDetail           String?            @map("address_detail")
+    approvalStatus          VarChar(20)?       @default("pending") @map("approval_status")
+    businessLicenseNumber   VarChar(20)?       @map("business_license_number")
+    businessLicenseUrl      String?            @map("business_license_url")
+    rejectionReason         String?            @map("rejection_reason")
+    settlementBank          String?            @map("settlement_bank")
+    settlementAccountNumber String?            @map("settlement_account_number")
+    settlementAccountHolder String?            @map("settlement_account_holder")
+    bookings                Bookings[]
+    conversations           Conversations[]
+    favorites               Favorites[]
+    locationImages          LocationImages[]
+    locationOptions         LocationOptions[]
+    locationReviews         LocationReviews[]
+    locationSns             LocationSns[]
+    locationTags            LocationTags[]
+    reservations            Reservations[]
+    reviews                 Reviews[]
+    spaces                  Spaces[]
+    category                Categories?        @relation(fields: [categoryId], references: [id], map: "locations_category_id_fkey")
+    manager                 Profiles?          @relation(fields: [managerId], references: [id], onDelete: SetNull, map: "locations_manager_id_fkey")
+
+    @@index([approvalStatus], map: "idx_locations_approval_status")
+    @@index([categoryId], map: "idx_locations_category")
+    @@index([lat, lng], map: "idx_locations_lat_lng")
+    @@index([managerId], map: "idx_locations_manager")
+    @@check(expression: sql`((approval_status)::text = ANY ((ARRAY['pending'::character varying, 'approved'::character varying, 'rejected'::character varying])::text[]))`, map: "locations_approval_status_check")
+    @@check(expression: sql`(status = ANY (ARRAY['available'::text, 'occupied'::text, 'maintenance'::text]))`, map: "locations_status_check")
+    @@check(expression: sql`(type = ANY (ARRAY['gallery'::text, 'cafe'::text, 'cultural_center'::text]))`, map: "locations_type_check")
+    @@rls
+    @@map("locations")
+  }
+
+  model Spaces {
+    id                  Uuid               @id(map: "spaces_pkey") @default(sql`gen_random_uuid()`)
+    locationId          Uuid?              @map("location_id")
+    name                String
+    size                String?
+    price               Numeric(10, 2)?
+    description         String?
+    images              String[]?          @noCheck(elementNotNull)
+    amenities           String[]?          @noCheck(elementNotNull)
+    isReserved          Boolean?           @default(false) @map("is_reserved")
+    createdAt           TimestamptzString? @default(now()) @map("created_at")
+    updatedAt           TimestamptzString? @default(now()) @map("updated_at")
+    width               Int
+    height              Int
+    maxArtworks         Int                @default(1) @map("max_artworks")
+    currentReservations Int                @default(0) @map("current_reservations")
+    manuallyClosed      Boolean?           @default(false) @map("manually_closed")
+    imageUrl            String?            @map("image_url")
+    bookings            Bookings[]
+    reservations        Reservations[]
+    location            Locations?         @relation(fields: [locationId], references: [id], onDelete: Cascade, map: "spaces_location_id_fkey", index: false)
+
+    @@index([manuallyClosed], map: "idx_spaces_manually_closed")
+    @@rls
+    @@map("spaces")
+  }
+
+  // WARNING: Foreign key "artistId" -> "auth.users" exists in the database, but its target schema is outside the introspected scope, so no relation field was generated. If the target schema is described by an extension pack, add it to extensions and re-run infer.
+  model Reservations {
+    id                 Uuid                @id(map: "reservations_pkey") @default(sql`gen_random_uuid()`)
+    artistId           Uuid                @map("artist_id")
+    locationId         Uuid                @map("location_id")
+    spaceId            Uuid                @map("space_id")
+    artworkId          Uuid                @map("artwork_id")
+    startDate          DateString          @map("start_date")
+    endDate            DateString          @map("end_date")
+    status             String              @default("pending")
+    totalPrice         Int                 @default(0) @map("total_price")
+    createdAt          TimestamptzString?  @default(now()) @map("created_at")
+    updatedAt          TimestamptzString?  @default(now()) @map("updated_at")
+    shortId            String?             @unique(map: "reservations_short_id_key") @map("short_id")
+    rejectionReason    String?             @map("rejection_reason")
+    orderId            String?             @map("order_id")
+    paymentKey         String?             @map("payment_key")
+    paymentStatus      String?             @map("payment_status")
+    paidAmount         Int?                @map("paid_amount")
+    paymentMethod      String?             @map("payment_method")
+    paymentConfirmedAt TimestamptzString?  @map("payment_confirmed_at")
+    paidAt             TimestamptzString?  @map("paid_at")
+    artworkViewEvents  ArtworkViewEvents[]
+    locationReviews    LocationReviews[]
+    artist             Profiles            @relation(fields: [artistId], references: [id], onDelete: Cascade, map: "reservations_artist_id_profiles_fkey")
+    artwork            Artworks            @relation(fields: [artworkId], references: [id], onDelete: Cascade, map: "reservations_artwork_id_fkey", index: false)
+    location           Locations           @relation(fields: [locationId], references: [id], onDelete: Cascade, map: "reservations_location_id_fkey")
+    space              Spaces              @relation(fields: [spaceId], references: [id], onDelete: Cascade, map: "reservations_space_id_fkey")
+
+    @@index([artistId], map: "idx_reservations_artist")
+    @@index([artistId], map: "idx_reservations_artist_profiles")
+    @@index([startDate, endDate], map: "idx_reservations_dates")
+    @@index([locationId], map: "idx_reservations_location")
+    @@index([orderId], map: "idx_reservations_order_id")
+    @@index([rejectionReason], map: "idx_reservations_rejection_reason", where: sql`(rejection_reason IS NOT NULL)`)
+    @@index([shortId], map: "idx_reservations_short_id")
+    @@index([spaceId], map: "idx_reservations_space")
+    @@index([status], map: "idx_reservations_status")
+    @@check(expression: sql`(status = ANY (ARRAY['pending'::text, 'confirmed'::text, 'cancelled'::text, 'completed'::text]))`, map: "reservations_status_check")
+    @@check(expression: sql`(end_date >= start_date)`, map: "valid_date_range")
+    @@rls
+    @@map("reservations")
+  }
+
+  model ArtworkViewEvents {
+    id            Uuid              @id(map: "artwork_view_events_pkey") @default(sql`gen_random_uuid()`)
+    artworkId     Uuid              @map("artwork_id")
+    reservationId Uuid?             @map("reservation_id")
+    source        String            @default("link")
+    referrer      String?
+    userAgent     String?           @map("user_agent")
+    createdAt     TimestamptzString @default(now()) @map("created_at")
+    artwork       Artworks          @relation(fields: [artworkId], references: [id], onDelete: Cascade, map: "artwork_view_events_artwork_id_fkey")
+    reservation   Reservations?     @relation(fields: [reservationId], references: [id], onDelete: SetNull, map: "artwork_view_events_reservation_id_fkey")
+
+    @@index([artworkId], map: "artwork_view_events_artwork_id_idx")
+    @@index([createdAt], map: "artwork_view_events_created_at_idx")
+    @@index([reservationId], map: "artwork_view_events_reservation_id_idx")
+    @@index([source], map: "artwork_view_events_source_idx")
+    @@check(expression: sql`(source = ANY (ARRAY['link'::text, 'qr'::text]))`, map: "artwork_view_events_source_check")
+    @@rls
+    @@map("artwork_view_events")
+  }
+
+  model Bookings {
+    id         Uuid               @id(map: "bookings_pkey") @default(sql`gen_random_uuid()`)
+    userId     Uuid?              @map("user_id")
+    locationId Uuid?              @map("location_id")
+    spaceId    Uuid?              @map("space_id")
+    artworkId  Uuid?              @map("artwork_id")
+    startDate  DateString         @map("start_date")
+    endDate    DateString         @map("end_date")
+    status     String?            @default("pending")
+    totalPrice Numeric(10, 2)?    @map("total_price")
+    notes      String?
+    createdAt  TimestamptzString? @default(now()) @map("created_at")
+    updatedAt  TimestamptzString? @default(now()) @map("updated_at")
+    reviews    Reviews[]
+    artwork    Artworks?          @relation(fields: [artworkId], references: [id], onDelete: SetNull, map: "bookings_artwork_id_fkey", index: false)
+    location   Locations?         @relation(fields: [locationId], references: [id], onDelete: Cascade, map: "bookings_location_id_fkey")
+    space      Spaces?            @relation(fields: [spaceId], references: [id], onDelete: Cascade, map: "bookings_space_id_fkey", index: false)
+    user       Profiles?          @relation(fields: [userId], references: [id], onDelete: Cascade, map: "bookings_user_id_fkey")
+
+    @@index([startDate, endDate], map: "idx_bookings_dates")
+    @@index([locationId], map: "idx_bookings_location")
+    @@index([userId], map: "idx_bookings_user")
+    @@check(expression: sql`(status = ANY (ARRAY['pending'::text, 'confirmed'::text, 'cancelled'::text, 'completed'::text]))`, map: "bookings_status_check")
+    @@rls
+    @@map("bookings")
+  }
+
+  model Conversations {
+    id            Uuid               @id(map: "conversations_pkey") @default(sql`gen_random_uuid()`)
+    createdAt     TimestamptzString  @default(sql`timezone('utc'::text, now())`) @map("created_at")
+    updatedAt     TimestamptzString  @default(sql`timezone('utc'::text, now())`) @map("updated_at")
+    locationId    Uuid               @map("location_id")
+    userId        Uuid               @map("user_id")
+    managerId     Uuid?              @map("manager_id")
+    lastMessage   String?            @map("last_message")
+    lastMessageAt TimestamptzString? @map("last_message_at")
+    unreadCount   Int?               @default(0) @map("unread_count")
+    isActive      Boolean?           @default(true) @map("is_active")
+    messages      Messages[]
+    location      Locations          @relation(fields: [locationId], references: [id], onDelete: Cascade, map: "conversations_location_id_fkey", index: "conversations_location_id_user_id_manager_id_key")
+    manager       Profiles?          @relation(name: "conversations_manager_id_fkey", fields: [managerId], references: [id], onDelete: SetNull, map: "conversations_manager_id_fkey")
+    user          Profiles           @relation(name: "conversations_user_id_fkey", fields: [userId], references: [id], onDelete: Cascade, map: "conversations_user_id_fkey", index: false)
+
+    @@unique([locationId, userId, managerId], map: "conversations_location_id_user_id_manager_id_key")
+    @@index([locationId, userId], map: "idx_conversations_location_user")
+    @@index([managerId], map: "idx_conversations_manager")
+    @@rls
+    @@map("conversations")
+  }
+
+  model Favorites {
+    id         Uuid               @id(map: "favorites_pkey") @default(sql`gen_random_uuid()`)
+    userId     Uuid               @map("user_id")
+    locationId Uuid               @map("location_id")
+    createdAt  TimestamptzString? @default(now()) @map("created_at")
+    location   Locations          @relation(fields: [locationId], references: [id], onDelete: Cascade, map: "favorites_location_id_fkey")
+    user       Profiles           @relation(fields: [userId], references: [id], onDelete: Cascade, map: "favorites_user_id_fkey")
+
+    @@unique([userId, locationId], map: "favorites_user_id_location_id_key")
+    @@index([locationId], map: "idx_favorites_location_id")
+    @@index([userId], map: "idx_favorites_user_id")
+    @@index([userId, locationId], map: "idx_favorites_user_location")
+    @@rls
+    @@map("favorites")
+  }
+
+  // WARNING: Foreign key "userId" -> "auth.users" exists in the database, but its target schema is outside the introspected scope, so no relation field was generated. If the target schema is described by an extension pack, add it to extensions and re-run infer.
+  model Inquiries {
+    id         Uuid                   @id(map: "inquiries_pkey") @default(sql`gen_random_uuid()`)
+    userId     Uuid                   @map("user_id")
+    subject    pg.enum(InquiryType)
+    content    String
+    status     pg.enum(InquiryStatus) @default("pending")
+    adminReply String?                @map("admin_reply")
+    createdAt  TimestamptzString?     @default(now()) @map("created_at")
+    updatedAt  TimestamptzString?     @default(now()) @map("updated_at")
+    resolvedAt TimestamptzString?     @map("resolved_at")
+    imageUrl   String?                @map("image_url")
+    adminNote  String?                @map("admin_note")
+
+    @@index([createdAt], map: "idx_inquiries_created_at")
+    @@index([status], map: "idx_inquiries_status")
+    @@index([userId], map: "idx_inquiries_user_id")
+    @@rls
+    @@map("inquiries")
+  }
+
+  model LocationImages {
+    id         Uuid               @id(map: "location_images_pkey") @default(sql`gen_random_uuid()`)
+    locationId Uuid?              @map("location_id")
+    imageUrl   String             @map("image_url")
+    altText    String?            @map("alt_text")
+    sortOrder  Int?               @default(0) @map("sort_order")
+    createdAt  TimestamptzString? @default(now()) @map("created_at")
+    location   Locations?         @relation(fields: [locationId], references: [id], onDelete: Cascade, map: "location_images_location_id_fkey", index: false)
+
+    @@rls
+    @@map("location_images")
+  }
+
+  model LocationOptions {
+    id              Uuid               @id(map: "location_options_pkey") @default(sql`gen_random_uuid()`)
+    locationId      Uuid?              @map("location_id")
+    parking         Boolean?           @default(false)
+    pets            Boolean?           @default(false)
+    twentyFourHours Boolean?           @default(false) @map("twenty_four_hours")
+    createdAt       TimestamptzString? @default(now()) @map("created_at")
+    location        Locations?         @relation(fields: [locationId], references: [id], onDelete: Cascade, map: "location_options_location_id_fkey", index: false)
+
+    @@rls
+    @@map("location_options")
+  }
+
+  model LocationReviews {
+    id            Uuid               @id(map: "location_reviews_pkey") @default(sql`gen_random_uuid()`)
+    locationId    Uuid?              @map("location_id")
+    artistId      Uuid?              @map("artist_id")
+    reservationId Uuid?              @map("reservation_id")
+    rating        Int?
+    comment       String?
+    createdAt     TimestamptzString? @default(now()) @map("created_at")
+    artist        Profiles?          @relation(fields: [artistId], references: [id], onDelete: Cascade, map: "location_reviews_artist_id_fkey")
+    location      Locations?         @relation(fields: [locationId], references: [id], onDelete: Cascade, map: "location_reviews_location_id_fkey")
+    reservation   Reservations?      @relation(fields: [reservationId], references: [id], onDelete: Cascade, map: "location_reviews_reservation_id_fkey", index: false)
+
+    @@index([artistId], map: "idx_location_reviews_artist")
+    @@index([locationId], map: "idx_location_reviews_location")
+    @@check(expression: sql`((rating >= 1) AND (rating <= 5))`, map: "location_reviews_rating_check")
+    @@rls
+    @@map("location_reviews")
+  }
+
+  model LocationSns {
+    id         Uuid               @id(map: "location_sns_pkey") @default(sql`gen_random_uuid()`)
+    locationId Uuid?              @map("location_id")
+    platform   String
+    url        String
+    createdAt  TimestamptzString? @default(now()) @map("created_at")
+    location   Locations?         @relation(fields: [locationId], references: [id], onDelete: Cascade, map: "location_sns_location_id_fkey", index: false)
+
+    @@rls
+    @@map("location_sns")
+  }
+
+  model Tags {
+    id           Uuid               @id(map: "tags_pkey") @default(sql`gen_random_uuid()`)
+    name         String             @unique(map: "tags_name_key")
+    createdAt    TimestamptzString? @default(now()) @map("created_at")
+    locationTags LocationTags[]
+
+    @@rls
+    @@map("tags")
+  }
+
+  model LocationTags {
+    locationId Uuid      @map("location_id")
+    tagId      Uuid      @map("tag_id")
+    location   Locations @relation(fields: [locationId], references: [id], onDelete: Cascade, map: "location_tags_location_id_fkey", index: "location_tags_pkey")
+    tag        Tags      @relation(fields: [tagId], references: [id], onDelete: Cascade, map: "location_tags_tag_id_fkey", index: false)
+
+    @@id([locationId, tagId], map: "location_tags_pkey")
+    @@rls
+    @@map("location_tags")
+  }
+
+  model Messages {
+    id             Uuid              @id(map: "messages_pkey") @default(sql`gen_random_uuid()`)
+    conversationId Uuid              @map("conversation_id")
+    senderId       Uuid              @map("sender_id")
+    content        String
+    messageType    String?           @default("text") @map("message_type")
+    isRead         Boolean?          @default(false) @map("is_read")
+    createdAt      TimestamptzString @default(sql`timezone('utc'::text, now())`) @map("created_at")
+    updatedAt      TimestamptzString @default(sql`timezone('utc'::text, now())`) @map("updated_at")
+    conversation   Conversations     @relation(fields: [conversationId], references: [id], onDelete: Cascade, map: "messages_conversation_id_fkey")
+    sender         Profiles          @relation(fields: [senderId], references: [id], onDelete: Cascade, map: "messages_sender_id_fkey")
+
+    @@index([conversationId], map: "idx_messages_conversation")
+    @@index([createdAt], map: "idx_messages_created_at")
+    @@index([senderId], map: "idx_messages_sender")
+    @@check(expression: sql`(message_type = ANY (ARRAY['text'::text, 'image'::text, 'system'::text]))`, map: "messages_message_type_check")
+    @@rls
+    @@map("messages")
+  }
+
+  model NotificationSettings {
+    id                 Uuid               @id(map: "notification_settings_pkey") @default(sql`gen_random_uuid()`)
+    userId             Uuid?              @unique(map: "notification_settings_user_id_key") @map("user_id")
+    comments           Boolean?           @default(true)
+    exhibitions        Boolean?           @default(true)
+    createdAt          TimestamptzString? @default(now()) @map("created_at")
+    updatedAt          TimestamptzString? @default(now()) @map("updated_at")
+    exhibitionDistance Int?               @default(5) @map("exhibition_distance")
+    user               Profiles?          @relation(fields: [userId], references: [id], onDelete: Cascade, map: "notification_settings_user_id_fkey")
+
+    @@rls
+    @@map("notification_settings")
+  }
+
+  model Notifications {
+    id              Uuid               @id(map: "notifications_pkey") @default(sql`gen_random_uuid()`)
+    userId          Uuid?              @map("user_id")
+    _type           String             @map("type")
+    title           String
+    message         String
+    isRead          Boolean?           @default(false) @map("is_read")
+    createdAt       TimestamptzString? @default(now()) @map("created_at")
+    relatedId       Uuid?              @map("related_id")
+    rejectionReason String?            @map("rejection_reason")
+    pushToken       String?            @map("push_token")
+    metadata        Jsonb              @default(json`{}`)
+    user            Profiles?          @relation(fields: [userId], references: [id], onDelete: Cascade, map: "notifications_user_id_fkey")
+
+    @@index([createdAt], map: "idx_notifications_created_at")
+    @@index([isRead], map: "idx_notifications_is_read")
+    @@index([relatedId], map: "idx_notifications_related_id")
+    @@index([_type, relatedId, userId], map: "idx_notifications_type_related_user")
+    @@index([userId], map: "idx_notifications_user")
+    @@index([userId], map: "idx_notifications_user_id")
+    @@rls
+    @@map("notifications")
+  }
+
+  model Reviews {
+    id         Uuid               @id(map: "reviews_pkey") @default(sql`gen_random_uuid()`)
+    userId     Uuid?              @map("user_id")
+    locationId Uuid?              @map("location_id")
+    bookingId  Uuid?              @map("booking_id")
+    rating     Int?
+    comment    String?
+    createdAt  TimestamptzString? @default(now()) @map("created_at")
+    updatedAt  TimestamptzString? @default(now()) @map("updated_at")
+    booking    Bookings?          @relation(fields: [bookingId], references: [id], onDelete: Cascade, map: "reviews_booking_id_fkey", index: false)
+    location   Locations?         @relation(fields: [locationId], references: [id], onDelete: Cascade, map: "reviews_location_id_fkey", index: false)
+    user       Profiles?          @relation(fields: [userId], references: [id], onDelete: Cascade, map: "reviews_user_id_fkey", index: false)
+
+    @@check(expression: sql`((rating >= 1) AND (rating <= 5))`, map: "reviews_rating_check")
+    @@rls
+    @@map("reviews")
+  }
+
+  model UserOnlineStatus {
+    userId    Uuid               @id(map: "user_online_status_pkey") @map("user_id")
+    isOnline  Boolean?           @default(false) @map("is_online")
+    lastSeen  TimestamptzString? @default(sql`timezone('utc'::text, now())`) @map("last_seen")
+    createdAt TimestamptzString  @default(sql`timezone('utc'::text, now())`) @map("created_at")
+    updatedAt TimestamptzString  @default(sql`timezone('utc'::text, now())`) @map("updated_at")
+    user      Profiles           @relation(fields: [userId], references: [id], onDelete: Cascade, map: "user_online_status_user_id_fkey")
+
+    @@index([isOnline], map: "idx_user_online_status_online")
+    @@rls
+    @@map("user_online_status")
+  }
+
+  // WARNING: Foreign key "userId" -> "auth.users" exists in the database, but its target schema is outside the introspected scope, so no relation field was generated. If the target schema is described by an extension pack, add it to extensions and re-run infer.
+  model UserPushTokens {
+    id         Uuid               @id(map: "user_push_tokens_pkey") @default(sql`gen_random_uuid()`)
+    userId     Uuid               @map("user_id")
+    pushToken  String             @map("push_token")
+    deviceType String?            @map("device_type")
+    deviceId   String?            @map("device_id")
+    appVersion String?            @map("app_version")
+    isActive   Boolean?           @default(true) @map("is_active")
+    createdAt  TimestamptzString? @default(now()) @map("created_at")
+    updatedAt  TimestamptzString? @default(now()) @map("updated_at")
+
+    @@unique([userId, pushToken], map: "user_push_tokens_user_id_push_token_key")
+    @@index([userId, isActive], map: "idx_user_push_tokens_active")
+    @@index([userId], map: "idx_user_push_tokens_user_id")
+    @@check(expression: sql`(device_type = ANY (ARRAY['ios'::text, 'android'::text]))`, map: "user_push_tokens_device_type_check")
+    @@rls
+    @@map("user_push_tokens")
+  }
+
+  model UserSettings {
+    id        Uuid               @id(map: "user_settings_pkey") @default(sql`gen_random_uuid()`)
+    userId    Uuid?              @unique(map: "user_settings_user_id_key") @map("user_id")
+    darkMode  Boolean?           @default(false) @map("dark_mode")
+    language  String?            @default("ko")
+    createdAt TimestamptzString? @default(now()) @map("created_at")
+    updatedAt TimestamptzString? @default(now()) @map("updated_at")
+    user      Profiles?          @relation(fields: [userId], references: [id], onDelete: Cascade, map: "user_settings_user_id_fkey")
+
+    @@rls
+    @@map("user_settings")
+  }
+
+  native_enum InquiryStatus {
+    pending = "pending"
+    in_progress = "in_progress"
+    resolved = "resolved"
+    closed = "closed"
+    @@map("inquiry_status")
+  }
+
+  native_enum InquiryType {
+    payment_error = "payment_error"
+    reservation_error = "reservation_error"
+    general = "general"
+    other = "other"
+    @@map("inquiry_type")
+  }
+
+  policy_delete Admin_can_delete_any_reservation {
+    target = Reservations
+    roles = [authenticated]
+    using = sql`
+  (EXISTS ( SELECT 1
+     FROM profiles
+    WHERE ((profiles.id = auth.uid()) AND ((profiles.user_type = 'admin'::text) OR (profiles.email ~~ '%@admin.com'::text)))))
+  `
+    @@map("Admin can delete any reservation")
+  }
+
+  policy_update Admin_can_update_any_reservation {
+    target = Reservations
+    roles = [authenticated]
+    using = sql`
+  (EXISTS ( SELECT 1
+     FROM profiles
+    WHERE ((profiles.id = auth.uid()) AND ((profiles.user_type = 'admin'::text) OR (profiles.email ~~ '%@admin.com'::text)))))
+  `
+    withCheck = sql`
+  (EXISTS ( SELECT 1
+     FROM profiles
+    WHERE ((profiles.id = auth.uid()) AND ((profiles.user_type = 'admin'::text) OR (profiles.email ~~ '%@admin.com'::text)))))
+  `
+    @@map("Admin can update any reservation")
+  }
+
+  policy_update Admins_can_update_all_inquiries {
+    target = Inquiries
+    roles = [public]
+    using = sql`
+  (EXISTS ( SELECT 1
+     FROM profiles
+    WHERE ((profiles.id = auth.uid()) AND ((profiles.user_type = 'admin'::text) OR (profiles.email ~~ '%@admin.com'::text)))))
+  `
+    withCheck = sql`
+  (EXISTS ( SELECT 1
+     FROM profiles
+    WHERE ((profiles.id = auth.uid()) AND ((profiles.user_type = 'admin'::text) OR (profiles.email ~~ '%@admin.com'::text)))))
+  `
+    @@map("Admins can update all inquiries")
+  }
+
+  policy_select Admins_can_view_all_inquiries {
+    target = Inquiries
+    roles = [public]
+    using = sql`
+  (EXISTS ( SELECT 1
+     FROM profiles
+    WHERE ((profiles.id = auth.uid()) AND ((profiles.user_type = 'admin'::text) OR (profiles.email ~~ '%@admin.com'::text)))))
+  `
+    @@map("Admins can view all inquiries")
+  }
+
+  policy_insert Anyone_can_insert_artwork_view_events {
+    target = ArtworkViewEvents
+    roles = [public]
+    withCheck = sql`true`
+    @@map("Anyone can insert artwork view events")
+  }
+
+  policy_select Anyone_can_view_artworks {
+    target = Artworks
+    roles = [public]
+    using = sql`true`
+    @@map("Anyone can view artworks")
+  }
+
+  policy_select Anyone_can_view_categories {
+    target = Categories
+    roles = [public]
+    using = sql`true`
+    @@map("Anyone can view categories")
+  }
+
+  policy_select Anyone_can_view_location_images {
+    target = LocationImages
+    roles = [public]
+    using = sql`true`
+    @@map("Anyone can view location images")
+  }
+
+  policy_select Anyone_can_view_location_options {
+    target = LocationOptions
+    roles = [public]
+    using = sql`true`
+    @@map("Anyone can view location options")
+  }
+
+  policy_select Anyone_can_view_location_reviews {
+    target = LocationReviews
+    roles = [public]
+    using = sql`true`
+    @@map("Anyone can view location reviews")
+  }
+
+  policy_select Anyone_can_view_location_sns {
+    target = LocationSns
+    roles = [public]
+    using = sql`true`
+    @@map("Anyone can view location sns")
+  }
+
+  policy_select Anyone_can_view_location_tags {
+    target = LocationTags
+    roles = [public]
+    using = sql`true`
+    @@map("Anyone can view location tags")
+  }
+
+  policy_select Anyone_can_view_locations {
+    target = Locations
+    roles = [public]
+    using = sql`true`
+    @@map("Anyone can view locations")
+  }
+
+  policy_select Anyone_can_view_online_status {
+    target = UserOnlineStatus
+    roles = [public]
+    using = sql`true`
+    @@map("Anyone can view online status")
+  }
+
+  policy_select Anyone_can_view_reservations {
+    target = Reservations
+    roles = [public]
+    using = sql`true`
+    @@map("Anyone can view reservations")
+  }
+
+  policy_select Anyone_can_view_reviews {
+    target = Reviews
+    roles = [public]
+    using = sql`true`
+    @@map("Anyone can view reviews")
+  }
+
+  policy_select Anyone_can_view_spaces {
+    target = Spaces
+    roles = [public]
+    using = sql`true`
+    @@map("Anyone can view spaces")
+  }
+
+  policy_select Anyone_can_view_tags {
+    target = Tags
+    roles = [public]
+    using = sql`true`
+    @@map("Anyone can view tags")
+  }
+
+  policy_insert Anyone_can_write_artwork_reviews {
+    target = ArtworkReviews
+    roles = [public]
+    withCheck = sql`((artwork_id IS NOT NULL) AND ((length(TRIM(BOTH FROM nickname)) >= 1) AND (length(TRIM(BOTH FROM nickname)) <= 40)) AND ((length(TRIM(BOTH FROM comment)) >= 1) AND (length(TRIM(BOTH FROM comment)) <= 500)))`
+    @@map("Anyone can write artwork reviews")
+  }
+
+  policy_delete Artists_can_delete_own_artworks {
+    target = Artworks
+    roles = [public]
+    using = sql`(auth.uid() = artist_id)`
+    @@map("Artists can delete own artworks")
+  }
+
+  policy_insert Artists_can_insert_own_artworks {
+    target = Artworks
+    roles = [public]
+    withCheck = sql`(auth.uid() = artist_id)`
+    @@map("Artists can insert own artworks")
+  }
+
+  policy_update Artists_can_update_own_artworks {
+    target = Artworks
+    roles = [public]
+    using = sql`(auth.uid() = artist_id)`
+    @@map("Artists can update own artworks")
+  }
+
+  policy_select Artwork_reviews_are_publicly_readable {
+    target = ArtworkReviews
+    roles = [public]
+    using = sql`true`
+    @@map("Artwork reviews are publicly readable")
+  }
+
+  policy_insert Authenticated_users_can_create_location_reviews {
+    target = LocationReviews
+    roles = [public]
+    withCheck = sql`(auth.uid() = artist_id)`
+    @@map("Authenticated users can create location reviews")
+  }
+
+  policy_insert Authenticated_users_can_create_locations {
+    target = Locations
+    roles = [public]
+    withCheck = sql`((auth.role() = 'authenticated'::text) AND (manager_id = auth.uid()))`
+    @@map("Authenticated users can create locations")
+  }
+
+  policy_insert Authenticated_users_can_create_reservations {
+    target = Reservations
+    roles = [public]
+    withCheck = sql`((auth.role() = 'authenticated'::text) AND (auth.uid() = artist_id))`
+    @@map("Authenticated users can create reservations")
+  }
+
+  policy_insert Authenticated_users_can_insert_tags {
+    target = Tags
+    roles = [public]
+    withCheck = sql`(auth.role() = 'authenticated'::text)`
+    @@map("Authenticated users can insert tags")
+  }
+
+  policy_all Authenticated_users_can_manage_location_images {
+    target = LocationImages
+    roles = [public]
+    withCheck = sql`(auth.role() = 'authenticated'::text)`
+    @@map("Authenticated users can manage location images")
+  }
+
+  policy_all Authenticated_users_can_manage_location_options {
+    target = LocationOptions
+    roles = [public]
+    withCheck = sql`(auth.role() = 'authenticated'::text)`
+    @@map("Authenticated users can manage location options")
+  }
+
+  policy_all Authenticated_users_can_manage_location_sns {
+    target = LocationSns
+    roles = [public]
+    withCheck = sql`(auth.role() = 'authenticated'::text)`
+    @@map("Authenticated users can manage location sns")
+  }
+
+  policy_all Authenticated_users_can_manage_location_tags {
+    target = LocationTags
+    roles = [public]
+    withCheck = sql`(auth.role() = 'authenticated'::text)`
+    @@map("Authenticated users can manage location tags")
+  }
+
+  policy_all Authenticated_users_can_manage_spaces {
+    target = Spaces
+    roles = [public]
+    withCheck = sql`(auth.role() = 'authenticated'::text)`
+    @@map("Authenticated users can manage spaces")
+  }
+
+  policy_select Authenticated_users_can_read_artwork_view_events {
+    target = ArtworkViewEvents
+    roles = [authenticated]
+    using = sql`true`
+    @@map("Authenticated users can read artwork view events")
+  }
+
+  policy_delete Managers_can_delete_own_locations {
+    target = Locations
+    roles = [public]
+    using = sql`(manager_id = auth.uid())`
+    @@map("Managers can delete own locations")
+  }
+
+  policy_update Managers_can_update_own_locations {
+    target = Locations
+    roles = [public]
+    using = sql`(manager_id = auth.uid())`
+    withCheck = sql`(manager_id = auth.uid())`
+    @@map("Managers can update own locations")
+  }
+
+  policy_insert Managers_with_store_creation_role_can_create_locations {
+    target = Locations
+    roles = [public]
+    withCheck = sql`
+  ((auth.role() = 'authenticated'::text) AND (manager_id = auth.uid()) AND (EXISTS ( SELECT 1
+     FROM profiles
+    WHERE ((profiles.id = auth.uid()) AND (profiles.user_type = 'manager'::text) AND (profiles.can_create_store = true)))))
+  `
+    @@map("Managers with store creation role can create locations")
+  }
+
+  policy_insert Participants_can_send_messages {
+    target = Messages
+    roles = [public]
+    withCheck = sql`
+  ((EXISTS ( SELECT 1
+     FROM conversations c
+    WHERE ((c.id = messages.conversation_id) AND ((c.user_id = auth.uid()) OR (c.manager_id = auth.uid()))))) AND (auth.uid() = sender_id))
+  `
+    @@map("Participants can send messages")
+  }
+
+  policy_update Participants_can_update_conversations {
+    target = Conversations
+    roles = [public]
+    using = sql`((auth.uid() = user_id) OR (auth.uid() = manager_id))`
+    @@map("Participants can update conversations")
+  }
+
+  policy_update Participants_can_update_messages {
+    target = Messages
+    roles = [public]
+    using = sql`
+  (EXISTS ( SELECT 1
+     FROM conversations c
+    WHERE ((c.id = messages.conversation_id) AND ((c.user_id = auth.uid()) OR (c.manager_id = auth.uid())))))
+  `
+    @@map("Participants can update messages")
+  }
+
+  policy_select Participants_can_view_messages {
+    target = Messages
+    roles = [public]
+    using = sql`
+  (EXISTS ( SELECT 1
+     FROM conversations c
+    WHERE ((c.id = messages.conversation_id) AND ((c.user_id = auth.uid()) OR (c.manager_id = auth.uid())))))
+  `
+    @@map("Participants can view messages")
+  }
+
+  policy_select Public_can_view_locations {
+    target = Locations
+    roles = [public]
+    using = sql`true`
+    @@map("Public can view locations")
+  }
+
+  policy_insert System_can_insert_notifications {
+    target = Notifications
+    roles = [public]
+    withCheck = sql`true`
+    @@map("System can insert notifications")
+  }
+
+  policy_insert Users_can_create_bookings {
+    target = Bookings
+    roles = [public]
+    withCheck = sql`(auth.uid() = user_id)`
+    @@map("Users can create bookings")
+  }
+
+  policy_insert Users_can_create_conversations {
+    target = Conversations
+    roles = [public]
+    withCheck = sql`(auth.uid() = user_id)`
+    @@map("Users can create conversations")
+  }
+
+  policy_insert Users_can_create_reviews {
+    target = Reviews
+    roles = [public]
+    withCheck = sql`(auth.uid() = user_id)`
+    @@map("Users can create reviews")
+  }
+
+  policy_insert Users_can_create_their_own_inquiries {
+    target = Inquiries
+    roles = [public]
+    withCheck = sql`(auth.uid() = user_id)`
+    @@map("Users can create their own inquiries")
+  }
+
+  policy_delete Users_can_delete_own_locations {
+    target = Locations
+    roles = [public]
+    using = sql`(manager_id = auth.uid())`
+    @@map("Users can delete own locations")
+  }
+
+  policy_delete Users_can_delete_own_notifications {
+    target = Notifications
+    roles = [authenticated]
+    using = sql`(auth.uid() = user_id)`
+    @@map("Users can delete own notifications")
+  }
+
+  policy_delete Users_can_delete_their_own_favorites {
+    target = Favorites
+    roles = [public]
+    using = sql`(auth.uid() = user_id)`
+    @@map("Users can delete their own favorites")
+  }
+
+  policy_delete Users_can_delete_their_own_location_reviews {
+    target = LocationReviews
+    roles = [public]
+    using = sql`(auth.uid() = artist_id)`
+    @@map("Users can delete their own location reviews")
+  }
+
+  policy_delete Users_can_delete_their_own_reservations {
+    target = Reservations
+    roles = [public]
+    using = sql`(auth.uid() = artist_id)`
+    @@map("Users can delete their own reservations")
+  }
+
+  policy_delete Users_can_delete_their_pending_inquiries {
+    target = Inquiries
+    roles = [public]
+    using = sql`((auth.uid() = user_id) AND (status = 'pending'::inquiry_status))`
+    @@map("Users can delete their pending inquiries")
+  }
+
+  policy_insert Users_can_insert_own_profile {
+    target = Profiles
+    roles = [authenticated]
+    withCheck = sql`(auth.uid() = id)`
+    @@map("Users can insert own profile")
+  }
+
+  policy_insert Users_can_insert_their_own_favorites {
+    target = Favorites
+    roles = [public]
+    withCheck = sql`(auth.uid() = user_id)`
+    @@map("Users can insert their own favorites")
+  }
+
+  policy_all Users_can_manage_own_notification_settings {
+    target = NotificationSettings
+    roles = [public]
+    using = sql`(auth.uid() = user_id)`
+    @@map("Users can manage own notification settings")
+  }
+
+  policy_all Users_can_manage_own_push_tokens {
+    target = UserPushTokens
+    roles = [public]
+    using = sql`(auth.uid() = user_id)`
+    @@map("Users can manage own push tokens")
+  }
+
+  policy_all Users_can_manage_own_user_settings {
+    target = UserSettings
+    roles = [public]
+    using = sql`(auth.uid() = user_id)`
+    @@map("Users can manage own user settings")
+  }
+
+  policy_update Users_can_update_own_bookings {
+    target = Bookings
+    roles = [public]
+    using = sql`(auth.uid() = user_id)`
+    @@map("Users can update own bookings")
+  }
+
+  policy_update Users_can_update_own_locations {
+    target = Locations
+    roles = [public]
+    using = sql`(manager_id = auth.uid())`
+    withCheck = sql`(manager_id = auth.uid())`
+    @@map("Users can update own locations")
+  }
+
+  policy_update Users_can_update_own_notifications {
+    target = Notifications
+    roles = [authenticated]
+    using = sql`(auth.uid() = user_id)`
+    withCheck = sql`(auth.uid() = user_id)`
+    @@map("Users can update own notifications")
+  }
+
+  policy_update Users_can_update_own_profile {
+    target = Profiles
+    roles = [authenticated]
+    using = sql`(auth.uid() = id)`
+    withCheck = sql`(auth.uid() = id)`
+    @@map("Users can update own profile")
+  }
+
+  policy_update Users_can_update_own_reviews {
+    target = Reviews
+    roles = [public]
+    using = sql`(auth.uid() = user_id)`
+    @@map("Users can update own reviews")
+  }
+
+  policy_all Users_can_update_their_own_online_status {
+    target = UserOnlineStatus
+    roles = [public]
+    using = sql`(auth.uid() = user_id)`
+    @@map("Users can update their own online status")
+  }
+
+  policy_update Users_can_update_their_own_reservations {
+    target = Reservations
+    roles = [public]
+    using = sql`(auth.uid() = artist_id)`
+    withCheck = sql`(auth.uid() = artist_id)`
+    @@map("Users can update their own reservations")
+  }
+
+  policy_update Users_can_update_their_pending_inquiries {
+    target = Inquiries
+    roles = [public]
+    using = sql`((auth.uid() = user_id) AND (status = 'pending'::inquiry_status))`
+    withCheck = sql`((auth.uid() = user_id) AND (status = 'pending'::inquiry_status))`
+    @@map("Users can update their pending inquiries")
+  }
+
+  policy_select Users_can_view_all_profiles {
+    target = Profiles
+    roles = [public]
+    using = sql`true`
+    @@map("Users can view all profiles")
+  }
+
+  policy_select Users_can_view_own_bookings {
+    target = Bookings
+    roles = [public]
+    using = sql`
+  ((user_id = auth.uid()) OR (EXISTS ( SELECT 1
+     FROM locations
+    WHERE ((locations.id = bookings.location_id) AND (EXISTS ( SELECT 1
+             FROM profiles
+            WHERE ((profiles.id = auth.uid()) AND (profiles.user_type = 'manager'::text))))))))
+  `
+    @@map("Users can view own bookings")
+  }
+
+  policy_select Users_can_view_own_notifications {
+    target = Notifications
+    roles = [authenticated]
+    using = sql`(auth.uid() = user_id)`
+    @@map("Users can view own notifications")
+  }
+
+  policy_select Users_can_view_own_profile {
+    target = Profiles
+    roles = [authenticated]
+    using = sql`(auth.uid() = id)`
+    @@map("Users can view own profile")
+  }
+
+  policy_select Users_can_view_their_conversations {
+    target = Conversations
+    roles = [public]
+    using = sql`((auth.uid() = user_id) OR (auth.uid() = manager_id))`
+    @@map("Users can view their conversations")
+  }
+
+  policy_select Users_can_view_their_own_favorites {
+    target = Favorites
+    roles = [public]
+    using = sql`(auth.uid() = user_id)`
+    @@map("Users can view their own favorites")
+  }
+
+  policy_select Users_can_view_their_own_inquiries {
+    target = Inquiries
+    roles = [public]
+    using = sql`(auth.uid() = user_id)`
+    @@map("Users can view their own inquiries")
+  }
+}
