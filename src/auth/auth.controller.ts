@@ -6,6 +6,7 @@ import { AuthGuard } from './auth.guard';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  // GET /auth/me — 인증된 사용자의 ID와 이메일 조회
   @Get('me')
   @UseGuards(AuthGuard)
   getMe(@Req() req) {
