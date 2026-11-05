@@ -1,5 +1,13 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import {
+  Injectable,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import {
+  createClient,
+  isAuthRetryableFetchError,
+  SupabaseClient,
+} from '@supabase/supabase-js';
 
 @Injectable()
 export class AuthService {
@@ -21,6 +29,10 @@ export class AuthService {
 
     const user = result.data.user;
     const error = result.error;
+
+    if (isAuthRetryableFetchError(error)) {
+      throw new ServiceUnavailableException('인증 서버에 연결할 수 없습니다.');
+    }
 
     if (error || !user) {
       throw new UnauthorizedException('유효하지 않은 토큰입니다');
