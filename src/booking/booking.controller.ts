@@ -1,6 +1,16 @@
-import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  UseGuards,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
 import { BookingService } from './booking.service';
 import { AuthGuard } from 'src/auth/auth.guard';
+import { CreateBookingDto } from './dto/create-booking.dto';
 
 @Controller('booking')
 export class BookingController {
@@ -11,5 +21,13 @@ export class BookingController {
   @UseGuards(AuthGuard)
   myBooking(@Req() req) {
     return this.bookingService.myBooking(req.user.id);
+  }
+
+  // POST /booking — 로그인한 사용자의 예약 생성
+  @Post()
+  @UseGuards(AuthGuard)
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  Booking(@Req() req, @Body() body: CreateBookingDto) {
+    return this.bookingService.Booking(req.user.id, body);
   }
 }
