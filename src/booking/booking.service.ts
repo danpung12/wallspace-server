@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotAcceptableException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 
@@ -27,11 +33,23 @@ export class BookingService {
       throw new NotFoundException('공간을 찾을 수 없습니다');
     }
 
+    if (space.locationId !== dto.locationId) {
+      throw new ConflictException('공간이 일치하지 않습니다');
+    }
+
+    if (space.price === null) {
+      throw new NotAcceptableException('요금이 Null 입니다');
+    }
+
     const dayCost = Number(space.price);
 
     const startTime = new Date(dto.startDate).getTime();
     const endTime = new Date(dto.endDate).getTime();
     const totalday = (endTime - startTime) / (24 * 60 * 60 * 1000);
+
+    if (totalday < 0) {
+      throw new BadRequestException('날짜가 잘못되었습니다.');
+    }
 
     // 시작일과 종료일을 모두 포함하고, 수수료 10%를 더한 총액을 원 단위로 반올림한다.
     const totalPrice = Math.round(dayCost * (totalday + 1) * 1.1);
