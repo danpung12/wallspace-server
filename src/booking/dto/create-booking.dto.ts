@@ -1,4 +1,6 @@
-import { IsDateString, IsUUID } from 'class-validator';
+import { IsDateString, IsUUID, Matches } from 'class-validator';
+
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * 예약 생성 요청
@@ -19,9 +21,11 @@ export class CreateBookingDto {
   @IsUUID()
   artworkId!: string;
 
+  @Matches(DATE_ONLY)
   @IsDateString({ strict: true })
   startDate!: string;
 
+  @Matches(DATE_ONLY)
   @IsDateString({ strict: true })
   endDate!: string;
 }
