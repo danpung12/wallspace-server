@@ -9,6 +9,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
+import { randomUUID } from 'crypto';
 
 dayjs.extend(isBetween);
 
@@ -92,12 +93,13 @@ export class BookingService {
       }
     }
 
-    // 검증을 통과한 예약을 대기 상태로 저장한다.
+    // 검증을 통과한 예약을 결제용 주문번호와 함께 대기 상태로 저장한다.
     const bookings = await this.prisma.db.orm.public.Reservations.create({
       ...dto,
       artistId,
       status: 'pending',
       totalPrice,
+      orderId: randomUUID(),
     });
     return bookings;
   }
